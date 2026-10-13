@@ -10,3 +10,5 @@ supabase/.temp/
 .omo/
 .DS_Store
 진행기록.md
+.vercel
+.env*

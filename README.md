@@ -15,6 +15,10 @@
 
 Vercel의 GitHub 연결로 `main`에 push할 때 자동 배포합니다. 별도의 설치나 프런트엔드 빌드가 필요하지 않습니다. 비밀 환경 변수는 Vercel에만 입력하며 소스에 기록하지 않습니다.
 
+저장소: [hunylee/medicine-note-mvp](https://github.com/hunylee/medicine-note-mvp). Vercel 프로젝트: `heonylees-projects/medicine-note-mvp`.
+
+수정 후에는 `git add . && git commit -m "수정 내용" && git push origin main`을 실행하면 자동 배포됩니다.
+
 카카오 설정은 [KAKAO_SETUP.md](KAKAO_SETUP.md), 신청 표와 보안 정책은 [SQL 정의](supabase/migrations/202610130001_create_launch_requests.sql)를 참고하세요. 브라우저에 포함된 Supabase publishable 키는 공개용이며, 데이터 보호는 RLS와 입력 전용 권한으로 적용합니다.
 
 ## 검사
