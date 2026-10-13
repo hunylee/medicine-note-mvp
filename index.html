@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="먹었던 감기약과 그때 느낀 효과를 나만의 복용 기록으로 남겨 보세요.">
+  <meta name="color-scheme" content="light dark">
+  <title>나의 약노트 · 감기약 복용 경험</title>
+  <style>
+    /* Design contract: warm paper, forest ink, sage accents. One document scroll,
+       reusable buttons/fields/panels, system Korean type, 8px spacing scale. */
+    :root { --bg:#f7f8f3; --paper:#fff; --ink:#233b32; --muted:#56675e; --accent:#285a42; --hover:#1c4531; --wash:#eaf0e5; --line:#cbd5c8; --error:#ad332b; --radius:24px; --small-radius:12px; --shadow:0 16px 48px #243b3210; --s1:8px; --s2:16px; --s3:24px; --s4:32px; --s5:48px; --s6:64px; }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-size:17px; line-height:1.7; word-break:keep-all; overflow-wrap:break-word; }
+    button,input,textarea { font:inherit; }
+    button,a,input,textarea,summary { -webkit-tap-highlight-color:transparent; }
+    button { cursor:pointer; }
+    button:disabled { opacity:.65; cursor:wait; }
+    :focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
+    .wrap { width:min(1120px,calc(100% - 48px)); margin-inline:auto; }
+    header { border-bottom:1px solid var(--line); }
+    .header-inner { min-height:88px; display:flex; align-items:center; justify-content:space-between; gap:var(--s2); }
+    .brand { display:flex; align-items:center; gap:12px; border:0; background:none; padding:8px 0; color:var(--ink); font-size:21px; font-weight:750; }
+    .brand svg { width:32px; height:32px; }
+    .header-note,.eyebrow { font-size:14px; font-weight:650; letter-spacing:.03em; }
+    .header-note { color:var(--muted); }
+    .header-actions { display:flex; align-items:center; gap:var(--s2); }
+    main { min-height:calc(100vh - 184px); }
+    .hero { display:grid; grid-template-columns:1.15fr 1fr; align-items:center; gap:var(--s6); padding:88px 0 72px; }
+    .eyebrow { display:inline-flex; gap:8px; align-items:center; color:var(--accent); }
+    .dot { width:7px; height:7px; border-radius:50%; background:var(--accent); }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { font-size:clamp(34px,4.3vw,56px); letter-spacing:-.055em; line-height:1.3; margin:var(--s3) 0; }
+    h1 span { display:block; }
+    .lead { max-width:480px; color:var(--muted); font-size:18px; line-height:1.85; margin-bottom:var(--s4); }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-height:52px; padding:14px 24px; border:1px solid transparent; border-radius:var(--small-radius); background:var(--accent); color:#fff; font-weight:650; line-height:1.5; transition:background .15s; text-align:center; }
+    .btn:hover { background:var(--hover); }
+    .btn.secondary { background:var(--paper); border-color:var(--line); color:var(--ink); }
+    .btn.secondary:hover,.text-btn:hover { background:var(--wash); }
+    .btn svg { width:20px; height:20px; flex-shrink:0; }
+    .text-btn { border:0; border-radius:8px; background:none; color:var(--ink); padding:10px 12px; min-height:44px; font-size:15px; }
+    .quiet { font-size:14px; color:var(--muted); margin:16px 0 0; }
+    .preview { background:var(--wash); padding:40px 32px; border-radius:32px; position:relative; }
+    .preview-caption { display:flex; justify-content:space-between; align-items:center; gap:var(--s2); font-size:14px; color:var(--muted); margin-bottom:var(--s3); }
+    .sample-tag { background:var(--paper); border:1px solid var(--line); border-radius:24px; padding:3px 12px; font-size:12px; }
+    .sample-card { background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:28px; box-shadow:var(--shadow); }
+    .card-top { display:flex; justify-content:space-between; align-items:center; gap:12px; color:var(--muted); font-size:14px; }
+    .sample-card h3 { font-size:23px; letter-spacing:-.035em; margin:16px 0; }
+    .pill { display:inline-block; background:var(--wash); color:var(--accent); padding:6px 12px; border-radius:8px; font-size:14px; font-weight:650; }
+    .sample-memo { border-top:1px solid var(--line); margin-top:24px; padding-top:20px; font-size:16px; color:var(--muted); }
+    .sample-memo p { margin:4px 0 0; color:var(--ink); }
+    .preview-foot { margin:20px 0 0; font-size:14px; text-align:center; color:var(--muted); }
+    .benefits { display:grid; grid-template-columns:repeat(3,1fr); gap:32px; border-top:1px solid var(--line); padding:32px 0 56px; }
+    .benefit { display:flex; gap:16px; align-items:flex-start; }
+    .number { font-size:13px; color:var(--accent); font-weight:750; padding-top:4px; }
+    .benefit h2 { font-size:17px; margin-bottom:4px; }
+    .benefit p { margin:0; color:var(--muted); font-size:15px; }
+    .page { padding:48px 0 64px; }
+    .back { margin-left:-12px; margin-bottom:24px; }
+    .page-title { font-size:clamp(28px,3.2vw,38px); line-height:1.4; letter-spacing:-.045em; margin:12px 0; }
+    .sub { color:var(--muted); margin-bottom:32px; max-width:640px; }
+    .workspace { display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:32px; }
+    .panel h2 { font-size:21px; margin-bottom:24px; }
+    .field { margin-bottom:24px; }
+    label,.field-label { display:block; font-size:16px; font-weight:650; margin-bottom:8px; }
+    .optional { color:var(--muted); font-size:13px; font-weight:400; margin-left:6px; }
+    input:not([type=radio]):not([type=checkbox]),textarea { width:100%; min-width:0; border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:var(--bg); color:var(--ink); font-size:16px; min-height:50px; }
+    input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
+    textarea { min-height:104px; resize:vertical; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    fieldset { border:0; padding:0; margin:0 0 24px; min-width:0; }
+    legend { padding:0; margin-bottom:12px; font-size:16px; font-weight:650; }
+    .choices { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .choice { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid var(--line); border-radius:10px; min-height:52px; font-size:15px; font-weight:500; margin:0; cursor:pointer; }
+    .choice:has(input:checked) { background:var(--wash); border-color:var(--accent); }
+    input[type=radio],input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; margin:0; }
+    .full { width:100%; }
+    .status { margin:12px 0 0; font-size:15px; color:var(--accent); }
+    .status:empty { display:none; }
+    .error { color:var(--error); }
+    .records-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+    .records-header h2 { font-size:21px; margin:0; }
+    .count { font-size:14px; color:var(--muted); }
+    .empty { border:1px dashed var(--line); border-radius:var(--radius); padding:48px 24px; text-align:center; color:var(--muted); }
+    .empty svg { width:40px; height:40px; margin-bottom:16px; color:var(--accent); }
+    .empty h3 { color:var(--ink); font-size:18px; margin-bottom:8px; }
+    .empty p { font-size:15px; margin:0; }
+    .record { margin-bottom:16px; padding:24px; }
+    .record h3 { font-size:20px; margin:12px 0; }
+    .record-note { font-size:15px; margin:12px 0 0; white-space:pre-wrap; overflow-wrap:break-word; }
+    .record details { margin-top:16px; border-top:1px solid var(--line); padding-top:8px; }
+    summary { cursor:pointer; min-height:44px; padding:8px 0; font-size:15px; color:var(--muted); }
+    .record dl { margin:12px 0 0; font-size:15px; }
+    .record dt { color:var(--muted); margin-top:12px; }
+    .record dd { margin:4px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .record h3 { overflow-wrap:anywhere; }
+    .notice { font-size:14px; color:var(--muted); margin:20px 0 24px; }
+    .signup-shell { max-width:600px; margin:auto; }
+    .check-label { display:flex; align-items:flex-start; gap:12px; min-height:44px; font-weight:400; font-size:15px; cursor:pointer; }
+    .check-label input { margin-top:5px; }
+    .success { padding:56px 24px; text-align:center; }
+    .success-mark { width:64px; height:64px; background:var(--wash); color:var(--accent); border-radius:50%; display:grid; place-items:center; margin:0 auto 24px; font-size:28px; }
+    footer { border-top:1px solid var(--line); padding:24px 0; color:var(--muted); font-size:13px; }
+    .footer-inner { display:flex; justify-content:space-between; gap:24px; }
+    dialog { background:var(--paper); color:var(--ink); width:min(480px,calc(100% - 32px)); padding:32px; border:1px solid var(--line); border-radius:var(--radius); max-height:calc(100dvh - 32px); overflow:auto; }
+    dialog::backdrop { background:#15281f88; }
+    dialog h2 { font-size:25px; line-height:1.4; margin:12px 0; }
+    dialog .sub { font-size:15px; margin-bottom:24px; }
+    .dialog-actions { display:flex; gap:12px; margin-top:24px; }
+    .dialog-actions .btn { flex:1; }
+    .send-button { margin-top:16px; width:100%; }
+    #kakao-message { min-height:180px; }
+    #kakao-dialog .dialog-actions { flex-wrap:wrap; }
+    #kakao-dialog .dialog-actions .btn { flex:1 1 150px; }
+    .skip { position:absolute; top:-100px; }
+    .skip:focus { top:8px; left:8px; z-index:20; background:var(--paper); padding:12px; color:var(--ink); }
+    @media (prefers-color-scheme:dark) { :root { --bg:#16241d; --paper:#203027; --ink:#edf3ea; --muted:#bac8bd; --accent:#b7d6a9; --hover:#cce5c1; --wash:#2c4031; --line:#526857; --error:#ffaea3; --shadow:0 16px 48px #0003; } .btn { color:#16241d; } }
+    @media (max-width:760px) { .hero { grid-template-columns:1fr; gap:40px; padding:48px 0 40px; } .hero-copy { max-width:560px; } .preview { max-width:520px; width:100%; padding:24px; } .benefits { grid-template-columns:1fr; gap:24px; padding-bottom:40px; } .workspace { grid-template-columns:1fr; } .header-note { display:none; } .page { padding-top:24px; } .lead { font-size:17px; } }
+    @media (max-width:440px) { .wrap { width:calc(100% - 32px); } .header-inner { min-height:72px; } .brand { font-size:19px; } .panel { padding:24px 20px; } .field-row { grid-template-columns:1fr; gap:0; } .choices { grid-template-columns:1fr; gap:8px; } .hero .btn { width:100%; padding-inline:16px; } .sample-card { padding:24px 20px; } .footer-inner { flex-direction:column; gap:8px; } .quiet { font-size:14px; } dialog { padding:24px; } }
+    @media (prefers-reduced-motion:reduce) { * { transition:none !important; scroll-behavior:auto !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">본문으로 바로 가기</a>
+  <header><div class="wrap header-inner">
+    <button class="brand" id="home" aria-label="나의 약노트 첫 화면">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="5" y="4" width="23" height="25" rx="5" stroke="currentColor" stroke-width="1.8"/><path d="M11 4v25M16 12h7M16 18h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>나의 약노트
+    </button>
+    <div class="header-actions"><span class="header-note">나를 위한 작은 복용 기록</span><button id="lock" class="text-btn" hidden>내 기록 잠그기</button></div>
+  </div></header>
+  <main id="main" class="wrap">
+    <section id="landing" aria-labelledby="hero-title">
+      <div class="hero"><div class="hero-copy">
+        <div class="eyebrow"><span class="dot"></span>감기약 복용 경험 기록</div>
+        <h1 id="hero-title"><span>그때 먹은 감기약,</span><span>나한테 어땠더라?</span></h1>
+        <p class="lead">감기약이 잘 안 들어 답답한 분들을 위해, 먹었던 약과 그때 느낀 효과를 나만 볼 수 있는 카드로 남겨드려요.</p>
+        <button id="start" class="btn">내가 먹은 감기약 기록하기<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <p class="quiet">회원가입 없이 보관 · 원할 때 내 카카오톡으로</p>
+      </div><div class="preview" aria-label="복용 기록 카드 예시">
+        <div class="preview-caption"><span>작은 기록이 다음의 나에게</span><span class="sample-tag">예시 카드</span></div>
+        <article class="sample-card"><div class="card-top"><span>나의 복용 경험</span><span>10월 13일</span></div><h3>A병원에서 받은 감기약</h3><span class="pill">잘 들었어요</span><div class="sample-memo">먹고 불편했던 점<p>졸려서 낮에 일하기 힘들었어요.</p></div></article>
+        <p class="preview-foot">효과도, 불편했던 점도. 내가 느낀 그대로.</p>
+      </div></div>
+      <div class="benefits"><div class="benefit"><span class="number">01</span><div><h2>기억날 때 가볍게</h2><p>약 이름을 몰라도 알아볼 수 있는 이름이면 돼요.</p></div></div><div class="benefit"><span class="number">02</span><div><h2>느낀 그대로 기록</h2><p>잘 들었는지, 불편했는지 함께 남겨요.</p></div></div><div class="benefit"><span class="number">03</span><div><h2>내 기록은 나만</h2><p>개인 비밀번호로 잠그고 다시 열어요.</p></div></div></div>
+    </section>
+    <section id="feature" class="page" aria-labelledby="feature-title" hidden>
+      <button class="text-btn back" data-screen="landing">← 첫 화면으로</button>
+      <div class="eyebrow">나의 복용 경험</div><h1 class="page-title" id="feature-title" tabindex="-1">이번 감기약, 먹고 어땠나요?</h1>
+      <p class="sub">어떤 약을 먹었고 효과가 어땠는지 적어 주세요. 저장하면 바로 카드로 볼 수 있어요.</p>
+      <div class="workspace"><form id="record-form" class="panel" novalidate>
+        <h2>이번에 먹은 감기약</h2>
+        <div class="field"><label for="medicine">어떤 처방이었나요?</label><input id="medicine" name="medicine" required maxlength="100" placeholder="예: A병원에서 받은 감기약"><p class="quiet">약 이름을 몰라도 내가 알아볼 수 있게 적어 주세요.</p></div>
+        <div class="field-row"><div class="field"><label for="date">언제 먹었나요?</label><input id="date" name="date" type="date" required></div><div class="field"><label for="hospital">어느 병원인가요?<span class="optional">선택</span></label><input id="hospital" name="hospital" maxlength="100" placeholder="병원 이름"></div></div>
+        <div class="field"><label for="ingredients">약에 어떤 성분이 들어 있었나요?<span class="optional">선택</span></label><input id="ingredients" name="ingredients" maxlength="500" placeholder="약 봉투나 설명서에 적힌 성분 이름"><p class="quiet">모르면 비워 두셔도 돼요. 반응과 함께 기억해 두고 싶은 성분을 적어 주세요.</p></div>
+        <fieldset><legend>알레르기 반응이 있었나요?</legend><div class="choices">
+          <label class="choice"><input type="radio" name="allergy" value="있었어요">있었어요</label>
+          <label class="choice"><input type="radio" name="allergy" value="없었어요">없었어요</label>
+          <label class="choice"><input type="radio" name="allergy" value="잘 모르겠어요" checked>잘 모르겠어요</label>
+        </div></fieldset>
+        <div class="field"><label for="allergy-reaction">어떤 알레르기 반응이 있었나요?<span class="optional">선택</span></label><textarea id="allergy-reaction" name="allergyReaction" maxlength="1000" placeholder="겪었던 반응과 기억해 두고 싶은 성분을 적어 주세요."></textarea></div>
+        <fieldset><legend>먹고 어땠나요?</legend><div class="choices">
+          <label class="choice"><input type="radio" name="effect" value="잘 들었어요" required>잘 들었어요</label>
+          <label class="choice"><input type="radio" name="effect" value="조금 나아졌어요">조금 나아졌어요</label>
+          <label class="choice"><input type="radio" name="effect" value="잘 모르겠어요">잘 모르겠어요</label>
+          <label class="choice"><input type="radio" name="effect" value="별로 효과가 없었어요">별로 효과가 없었어요</label>
+        </div></fieldset>
+        <div class="field"><label for="memo">먹고 불편했던 점이 있었나요?<span class="optional">선택</span></label><textarea id="memo" name="memo" maxlength="1500" placeholder="예: 졸려서 낮에 일하기 힘들었어요"></textarea></div>
+        <button type="submit" class="btn full" id="save">내 복용 경험 저장하기</button><p id="record-status" class="status" role="status" aria-live="polite"></p>
+      </form><div>
+        <div class="records-header"><h2>내가 먹은 감기약 기록</h2><span class="count" id="count">0개</span></div>
+        <div id="records"></div>
+        <p class="notice">직접 느낀 효과를 남긴 기록이에요. 약을 바꾸고 싶다면 이 기록을 의사나 약사에게 보여 주세요.</p>
+        <button class="btn secondary full" data-screen="signup">정식 버전 나오면 알려 주세요</button>
+      </div></div>
+    </section>
+    <section id="signup" class="page signup-shell" aria-labelledby="signup-title" hidden>
+      <button class="text-btn back" id="signup-back">← 기록으로 돌아가기</button>
+      <div class="eyebrow">정식 버전 알림</div><h1 class="page-title" id="signup-title" tabindex="-1">다음에 감기 걸렸을 때도<br>써보고 싶으세요?</h1>
+      <p class="sub">정식 버전 출시 소식을 받고 싶다면 이름과 연락받을 곳을 남겨 주세요.</p>
+      <form id="signup-form" class="panel" novalidate>
+        <div class="field"><label for="applicant">이름</label><input id="applicant" name="applicant" autocomplete="off" maxlength="60" placeholder="이름이나 별명" required></div>
+        <div class="field"><label for="contact">연락받을 곳</label><input id="contact" name="contact" autocomplete="off" maxlength="120" placeholder="이메일 또는 휴대전화 번호" required></div>
+        <div class="field"><label for="signup-message">남기고 싶은 말<span class="optional">선택</span></label><textarea id="signup-message" name="message" maxlength="2000" placeholder="정식 버전에 바라는 점을 편하게 적어 주세요. 개인적인 진료·복용 정보는 적지 않아도 돼요."></textarea></div>
+        <p class="notice">출시 안내와 의견 확인을 위해 이름·연락처·남긴 말을 저장해요. 감기약 기록은 함께 보내지 않아요.</p>
+        <div class="field"><label class="check-label" for="signup-consent"><input id="signup-consent" type="checkbox" required>출시 안내와 의견 확인을 위해 이름·연락처·남긴 말을 저장하는 데 동의해요.</label></div>
+        <button class="btn full" id="signup-submit" type="submit">출시 소식 받기</button><p id="signup-status" class="status error" role="status" aria-live="polite"></p>
+      </form>
+      <div id="signup-success" class="panel success" role="status" hidden><div class="success-mark" aria-hidden="true">✓</div><h2>신청됐습니다</h2><button class="btn secondary" id="success-back">내 기록으로 돌아가기</button></div>
+    </section>
+  </main>
+  <footer><div class="wrap footer-inner"><span>나의 약노트 · 내가 느낀 그대로, 나만의 기록</span><span>약의 적합성을 진단하거나 처방을 추천하지 않아요.</span></div></footer>
+  <dialog id="vault-dialog" aria-labelledby="vault-title" aria-describedby="vault-description">
+    <form id="vault-form" novalidate><div class="eyebrow">내 기록 보호</div><h2 id="vault-title">내 기록에 비밀번호를 정해 주세요</h2><p class="sub" id="vault-description">이 기기의 기록을 암호화해 보관해요. 비밀번호는 저장하지 않으며, 잊어버리면 기록을 다시 열 수 없어요.</p>
+      <div class="field"><label for="password">기록 비밀번호</label><input id="password" type="password" autocomplete="off" minlength="10" maxlength="128" required><p class="quiet" id="password-help">10자 이상으로 정해 주세요. 다른 사람이 모르는 비밀번호를 사용하세요.</p></div>
+      <div class="field" id="confirm-field"><label for="confirm-password">비밀번호 다시 입력</label><input id="confirm-password" type="password" autocomplete="off" maxlength="128"></div>
+      <p id="vault-status" class="status error" role="status"></p><div class="dialog-actions"><button class="btn secondary" id="vault-cancel" type="button">돌아가기</button><button class="btn" id="vault-submit" type="submit">정하고 시작하기</button></div>
+    </form>
+  </dialog>
+  <dialog id="kakao-dialog" aria-labelledby="kakao-title">
+    <div class="eyebrow">카카오톡 · 나와의 채팅</div><h2 id="kakao-title">이 기록을 나에게 보낼까요?</h2>
+    <p class="sub">연결한 카카오계정의 ‘나와의 채팅’으로만 보내요. 아래 내용이 카카오로 전송되며, 친구에게 보내는 기능은 없어요.</p>
+    <label for="kakao-message">보낼 내용</label><textarea id="kakao-message" maxlength="200"></textarea>
+    <p class="quiet">최대 200자 요약이에요. 긴 이름과 메모는 일부만 담길 수 있어요. 보내기 전에 내용을 고칠 수 있어요.</p>
+    <p id="kakao-status" class="status" role="status" aria-live="polite"></p>
+    <p id="kakao-setup" class="notice" hidden>카카오톡 연결을 준비 중이에요. 아직 기록은 보내지 않았어요.</p>
+    <div class="dialog-actions"><button class="btn secondary" id="kakao-close">닫기</button><button class="btn secondary" id="kakao-connect" hidden>내 카카오계정 연결하기</button><button class="btn secondary" id="kakao-check" hidden>연결 확인하기</button><button class="btn" id="kakao-send" hidden>확인하고 나에게 보내기</button></div>
+  </dialog>
+  <noscript><p class="wrap">기록 기능을 이용하려면 브라우저의 자바스크립트를 켜 주세요.</p></noscript>
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const storageKey = 'my-medicine-note.v1';
+    const signupEndpoint = 'https://nsvjauxybbigtugrqriu.supabase.co/rest/v1/launch_requests';
+    const supabasePublishableKey = 'sb_publishable_pkIl4PP0BnzWnQsmeMvCwg_PJC6zK4_';
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    let key = null, salt = null, entries = [], busy = false, idleTimer = null, idleExpired = false;
+    let kakaoCsrf = null, kakaoPopup = null, kakaoSending = false, kakaoRequest = null;
+    let signupSubmitting = false;
+    const screens = ['landing','feature','signup'];
+    const localDate = () => { const d = new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); };
+    function resetRecordForm() { $('record-form').reset(); $('date').value = localDate(); $('date').max = localDate(); $('record-status').textContent = ''; }
+    function showScreen(name) {
+      if (name === 'feature' && !key) { openVault(); return; }
+      for (const id of screens) $(id).hidden = id !== name;
+      if (name === 'signup') { $('signup-form').hidden = false; $('signup-success').hidden = true; $('signup-status').textContent = ''; }
+      window.scrollTo(0,0);
+      if (name !== 'landing') $(name + '-title').focus({preventScroll:true});
+    }
+    function clearPrivateView() {
+      if ($('kakao-dialog').open) $('kakao-dialog').close();
+      key = null; salt = null; entries = []; clearTimeout(idleTimer); idleExpired = false;
+      $('records').replaceChildren(); $('count').textContent = '0개'; resetRecordForm(); $('signup-form').reset(); $('lock').hidden = true;
+      $('vault-form').reset(); $('vault-status').textContent = '';
+      if ($('vault-dialog').open) $('vault-dialog').close(); showScreen('landing');
+    }
+    function touchSession() {
+      if (!key) return; clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { if (busy) idleExpired = true; else clearPrivateView(); },5 * 60 * 1000);
+    }
+    for (const event of ['pointerdown','keydown']) document.addEventListener(event,touchSession,{passive:true});
+    function base64(bytes) { return btoa(String.fromCharCode(...bytes)); }
+    function bytes(text) { return Uint8Array.from(atob(text),c=>c.charCodeAt(0)); }
+    async function derive(password, s) {
+      const material = await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveKey']);
+      return crypto.subtle.deriveKey({name:'PBKDF2',salt:s,iterations:310000,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    }
+    async function persist(nextEntries, currentKey = key, currentSalt = salt) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encrypted = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},currentKey,encoder.encode(JSON.stringify(nextEntries))));
+      localStorage.setItem(storageKey,JSON.stringify({version:1,salt:base64(currentSalt),iv:base64(iv),data:base64(encrypted)}));
+    }
+    function setBusy(value) {
+      busy = value; $('save').disabled = value; $('lock').disabled = value; $('vault-submit').disabled = value; $('vault-cancel').disabled = value;
+    }
+    function openVault() {
+      if (!crypto.subtle) { $('vault-title').textContent = '안전한 연결에서 열어 주세요'; $('vault-description').textContent = '기록을 보호하려면 HTTPS 주소 또는 localhost에서 열어 주세요.'; $('vault-submit').disabled = true; }
+      else {
+        let exists;
+        try { exists = Boolean(localStorage.getItem(storageKey)); }
+        catch { $('vault-title').textContent = '브라우저 저장 공간을 사용할 수 없어요'; $('vault-description').textContent = '이 사이트의 저장 공간을 허용한 뒤 다시 열어 주세요.'; $('vault-submit').disabled = true; $('vault-dialog').showModal(); return; }
+        $('vault-title').textContent = exists ? '내 기록을 열어 볼까요?' : '내 기록에 비밀번호를 정해 주세요';
+        $('vault-description').textContent = exists ? '이 브라우저에 보관된 기록을 열려면 정해 둔 비밀번호를 입력해 주세요.' : '이 기기의 기록을 암호화해 보관해요. 비밀번호는 저장하지 않으며, 잊어버리면 기록을 다시 열 수 없어요.';
+        $('confirm-field').hidden = exists; $('password-help').textContent = exists ? '기록을 잠글 때 정한 비밀번호를 입력해 주세요.' : '10자 이상으로 정해 주세요. 다른 사람이 모르는 비밀번호를 사용하세요.';
+        $('vault-submit').textContent = exists ? '내 기록 열기' : '정하고 시작하기'; $('vault-submit').disabled = false;
+      }
+      $('vault-form').reset(); $('vault-status').textContent = ''; $('vault-dialog').showModal(); $('password').focus();
+    }
+    $('vault-dialog').addEventListener('cancel',event => { if (busy) event.preventDefault(); });
+    $('vault-dialog').addEventListener('close',() => { $('vault-form').reset(); $('vault-status').textContent = ''; });
+    $('vault-cancel').addEventListener('click',()=> $('vault-dialog').close());
+    $('vault-form').addEventListener('submit',async event => {
+      event.preventDefault(); if (busy || !crypto.subtle) return;
+      const password = $('password').value; let stored;
+      try { stored = localStorage.getItem(storageKey); } catch { $('vault-status').textContent = '저장 공간에 접근할 수 없어요. 브라우저 설정을 확인해 주세요.'; return; }
+      if (!password || (!stored && password.length < 10)) { $('vault-status').textContent = '비밀번호를 10자 이상 입력해 주세요.'; $('password').focus(); return; }
+      if (!stored && password !== $('confirm-password').value) { $('vault-status').textContent = '두 비밀번호가 달라요. 다시 확인해 주세요.'; $('confirm-password').focus(); return; }
+      setBusy(true); $('vault-status').textContent = '기록을 안전하게 준비하고 있어요…';
+      try {
+        let nextKey, nextSalt, nextEntries;
+        if (stored) {
+          const blob = JSON.parse(stored);
+          if (blob.version !== 1) throw new Error('Unsupported record version');
+          nextSalt = bytes(blob.salt); nextKey = await derive(password,nextSalt);
+          nextEntries = JSON.parse(decoder.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(blob.iv)},nextKey,bytes(blob.data))));
+          if (!Array.isArray(nextEntries)) throw new Error('Invalid records');
+        } else { nextSalt = crypto.getRandomValues(new Uint8Array(16)); nextKey = await derive(password,nextSalt); nextEntries = []; await persist(nextEntries,nextKey,nextSalt); }
+        key = nextKey; salt = nextSalt; entries = nextEntries; $('vault-dialog').close(); $('lock').hidden = false; touchSession(); renderRecords(); showScreen('feature');
+      } catch { $('vault-status').textContent = stored ? '기록을 열지 못했어요. 비밀번호를 확인해 주세요. 기록은 그대로 보관돼 있어요.' : '저장되지 않았어요. 브라우저 저장 공간을 확인하고 다시 눌러 주세요.'; }
+      finally { setBusy(false); }
+    });
+    function element(tag,className,text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
+    function renderRecords() {
+      const root = $('records'); root.replaceChildren(); $('count').textContent = entries.length + '개';
+      if (!entries.length) { const empty = element('div','empty'); empty.append(element('h3','', '아직 남긴 기록이 없어요'),element('p','','이번에 먹은 감기약부터 적어 볼까요?')); root.append(empty); return; }
+      for (const entry of entries) {
+        const card = element('article','panel record'); const top = element('div','card-top');
+        const [year,month,day] = entry.date.split('-'); top.append(element('span','','나의 복용 경험'),element('time','',`${year}년 ${Number(month)}월 ${Number(day)}일`));
+        const effectLabel = entry.allergy === '없었어요' && entry.effect === '잘 들었어요' ? '알레르기 반응 없이 잘 들었어요' : entry.effect;
+        card.append(top,element('h3','',entry.medicine),element('span','pill',effectLabel));
+        card.append(element('p','record-note','성분: ' + (entry.ingredients || '적은 내용이 없어요')));
+        card.append(element('p','record-note','알레르기 반응: ' + (entry.allergy || '아직 기록하지 않았어요')));
+        if (entry.allergyReaction) card.append(element('p','record-note','반응 메모: ' + entry.allergyReaction));
+        const details = document.createElement('details'); details.append(element('summary','','그때 기록 자세히 보기')); const list = document.createElement('dl');
+        for (const [label,value] of [['처방 이름',entry.medicine],['병원',entry.hospital || '적은 내용이 없어요'],['약 성분',entry.ingredients || '적은 내용이 없어요'],['알레르기 반응',entry.allergy || '아직 기록하지 않았어요'],['알레르기 반응 메모',entry.allergyReaction || '적은 내용이 없어요'],['먹고 불편했던 점',entry.memo || '적은 내용이 없어요']]) list.append(element('dt','',label),element('dd','',value));
+        details.append(list); card.append(details);
+        const send = element('button','btn secondary send-button','카카오톡으로 나에게 보내기');
+        send.type = 'button'; send.addEventListener('click',()=> openKakao(entry)); card.append(send); root.append(card);
+      }
+    }
+    $('record-form').addEventListener('submit',async event => {
+      event.preventDefault(); if (busy) return; if (!key) { openVault(); return; }
+      const form = new FormData(event.currentTarget); const medicine = String(form.get('medicine') || '').trim(), date = String(form.get('date') || ''), effect = form.get('effect');
+      if (!medicine || !date || !effect || !event.currentTarget.checkValidity()) {
+        $('record-status').classList.add('error'); $('record-status').textContent = '처방 이름, 먹은 날짜와 효과를 적어 주세요.';
+        if (!medicine) $('medicine').focus(); else if (!date || !$('date').validity.valid) $('date').focus(); else event.currentTarget.querySelector('input[name=effect]').focus(); return;
+      }
+      const next = [{medicine,date,effect:String(effect),hospital:String(form.get('hospital') || '').trim(),memo:String(form.get('memo') || '').trim(),ingredients:String(form.get('ingredients') || '').trim(),allergy:String(form.get('allergy') || '잘 모르겠어요'),allergyReaction:String(form.get('allergyReaction') || '').trim()},...entries];
+      setBusy(true); $('record-status').classList.remove('error'); $('record-status').textContent = '내 기록을 저장하고 있어요…';
+      try { await persist(next); entries = next; renderRecords(); resetRecordForm(); $('record-status').textContent = '기록했어요. 다음에 궁금할 때 다시 확인해 보세요.'; }
+      catch { $('record-status').classList.add('error'); $('record-status').textContent = '저장되지 않았어요. 브라우저 저장 공간을 확인하고 다시 눌러 주세요.'; }
+      finally { setBusy(false); if (idleExpired) clearPrivateView(); else touchSession(); }
+    });
+    async function checkKakao() {
+      $('kakao-connect').hidden = true; $('kakao-send').hidden = true; $('kakao-check').hidden = true; $('kakao-setup').hidden = true;
+      $('kakao-status').classList.remove('error'); $('kakao-status').textContent = '카카오톡 연결을 확인하고 있어요…';
+      const request = new AbortController(); kakaoRequest?.abort(); kakaoRequest = request;
+      try {
+        const response = await fetch('/api/kakao?action=status',{cache:'no-store',signal:request.signal});
+        const status = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
+        if (!$('kakao-dialog').open || request.signal.aborted) return;
+        if (!response.ok || !status?.configured) {
+          $('kakao-status').textContent = '아직 카카오톡이 연결되지 않았어요.'; $('kakao-setup').hidden = false; return;
+        }
+        kakaoCsrf = status.csrf;
+        $('kakao-status').textContent = status.connected ? '내 카카오계정이 연결됐어요. 내용을 확인한 뒤 보내 주세요.' : '내 카카오계정을 연결해 주세요. 연결만으로는 기록을 보내지 않아요.';
+        $('kakao-connect').hidden = status.connected; $('kakao-send').hidden = !status.connected;
+      } catch (error) {
+        if (error.name === 'AbortError' || !$('kakao-dialog').open) return;
+        $('kakao-status').classList.add('error'); $('kakao-status').textContent = '연결을 확인하지 못했어요. 인터넷 연결을 확인해 주세요.'; $('kakao-check').hidden = false;
+      }
+    }
+    function openKakao(entry) {
+      if (!key || busy) return;
+      const shorten = (text,limit) => Array.from(text).length > limit ? Array.from(text).slice(0,limit-1).join('') + '…' : text;
+      const summary = `[나의 약노트]\n${entry.date}\n처방: ${shorten(entry.medicine,25)}\n성분: ${shorten(entry.ingredients || '미입력',25)}\n효과: ${entry.effect}\n알레르기: ${entry.allergy || '아직 기록 없음'}\n반응 메모: ${shorten(entry.allergyReaction || '적은 내용 없음',25)}\n불편했던 점: ${shorten(entry.memo || '적은 내용 없음',25)}`;
+      $('kakao-message').value = shorten(summary,200);
+      $('kakao-dialog').showModal(); checkKakao();
+    }
+    $('kakao-close').addEventListener('click',()=> $('kakao-dialog').close());
+    $('kakao-dialog').addEventListener('close',()=> {
+      kakaoRequest?.abort(); kakaoRequest = null; kakaoCsrf = null; $('kakao-message').value = ''; $('kakao-status').textContent = '';
+      kakaoPopup?.close(); kakaoPopup = null;
+    });
+    $('kakao-connect').addEventListener('click',()=> {
+      kakaoPopup = window.open('/api/kakao?action=start','medicine-kakao-login','popup,width=480,height=720');
+      $('kakao-status').textContent = kakaoPopup ? '새 창에서 카카오계정을 연결한 뒤, 연결 확인을 눌러 주세요.' : '연결 창을 열지 못했어요. 이 사이트의 팝업을 허용한 뒤 다시 눌러 주세요.';
+      $('kakao-check').hidden = false;
+    });
+    $('kakao-check').addEventListener('click',checkKakao);
+    window.addEventListener('message',event => {
+      if (event.origin === location.origin && event.source === kakaoPopup && event.data?.type === 'medicine-kakao-connected' && $('kakao-dialog').open) checkKakao();
+    });
+    $('kakao-send').addEventListener('click',async()=> {
+      if (kakaoSending || !key || !kakaoCsrf) return;
+      const text = $('kakao-message').value.trim();
+      if (!text || Array.from(text).length > 200) { $('kakao-status').textContent = '보낼 내용을 1~200자로 적어 주세요.'; return; }
+      kakaoSending = true; $('kakao-send').disabled = true; $('kakao-connect').disabled = true; $('kakao-check').disabled = true;
+      $('kakao-status').classList.remove('error'); $('kakao-status').textContent = '나와의 채팅으로 보내고 있어요…';
+      const request = new AbortController(); kakaoRequest = request;
+      try {
+        const response = await fetch('/api/kakao?action=send',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':kakaoCsrf},body:JSON.stringify({text}),signal:request.signal});
+        const result = await response.json();
+        if (!$('kakao-dialog').open || request.signal.aborted) return;
+        if (response.ok && result.sent === true) { $('kakao-status').textContent = '카카오톡 나와의 채팅으로 보냈어요.'; $('kakao-send').hidden = true; return; }
+        $('kakao-status').classList.add('error');
+        if (result.code === 'LOGIN_REQUIRED' || response.status === 403) { kakaoCsrf = null; $('kakao-status').textContent = '연결이 만료됐어요. 다시 연결해 주세요.'; $('kakao-send').hidden = true; $('kakao-connect').hidden = false; }
+        else $('kakao-status').textContent = result.code === 'SEND_UNCERTAIN' ? '전송 결과를 확인하지 못했어요. 다시 보내기 전에 나와의 채팅을 확인해 주세요.' : '보내지 못했어요. 연결 권한을 확인한 뒤 다시 시도해 주세요.';
+      } catch (error) {
+        if (error.name !== 'AbortError' && $('kakao-dialog').open) { $('kakao-status').classList.add('error'); $('kakao-status').textContent = '전송 결과를 확인하지 못했어요. 다시 보내기 전에 나와의 채팅을 확인해 주세요.'; }
+      } finally { kakaoSending = false; $('kakao-send').disabled = false; $('kakao-connect').disabled = false; $('kakao-check').disabled = false; }
+    });
+    $('signup-form').addEventListener('submit',async event => {
+      event.preventDefault(); if (signupSubmitting) return;
+      const name = $('applicant').value.trim(), contact = $('contact').value.trim(), message = $('signup-message').value.trim();
+      const validContact = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) || /^(?:\+82[-\s]?1[016789]|01[016789])[-\s]?\d{3,4}[-\s]?\d{4}$/.test(contact);
+      if (!name || !validContact) { $('signup-status').textContent = !name ? '이름이나 별명을 적어 주세요.' : '연락받을 이메일 또는 휴대전화 번호를 확인해 주세요.'; (!name ? $('applicant') : $('contact')).focus(); return; }
+      if (!$('signup-consent').checked) { $('signup-status').textContent = '신청 정보 보관에 동의한 뒤 신청해 주세요.'; $('signup-consent').focus(); return; }
+      if (Array.from(name).length > 60 || Array.from(contact).length > 120 || Array.from(message).length > 2000) { $('signup-status').textContent = '입력한 내용이 너무 길어요. 조금 줄여 주세요.'; return; }
+      signupSubmitting = true; $('signup-submit').disabled = true; $('signup-submit').textContent = '신청을 저장하고 있어요…'; $('signup-status').textContent = '';
+      try {
+        const response = await fetch(signupEndpoint,{method:'POST',headers:{apikey:supabasePublishableKey,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({name,contact,message}),signal:AbortSignal.timeout(15000)});
+        if (!response.ok) { $('signup-status').textContent = '신청을 저장하지 못했어요. 입력 내용은 남겨 두었으니 잠시 후 다시 눌러 주세요.'; return; }
+        $('signup-form').reset(); $('signup-form').hidden = true; $('signup-success').hidden = false;
+      } catch {
+        $('signup-status').textContent = '저장 결과를 확인하지 못했어요. 인터넷 연결을 확인해 주세요. 이미 접수됐을 수도 있어요.';
+      } finally { signupSubmitting = false; $('signup-submit').disabled = false; $('signup-submit').textContent = '출시 소식 받기'; }
+    });
+    $('start').addEventListener('click',()=> key ? showScreen('feature') : openVault());
+    $('home').addEventListener('click',()=> { if (!busy) showScreen('landing'); });
+    $('lock').addEventListener('click',()=> { if (!busy) clearPrivateView(); });
+    for (const button of document.querySelectorAll('[data-screen]')) button.addEventListener('click',()=> { if (!busy) showScreen(button.dataset.screen); });
+    for (const id of ['signup-back','success-back']) $(id).addEventListener('click',()=> showScreen(key ? 'feature' : 'landing'));
+    window.addEventListener('pagehide',clearPrivateView);
+    window.addEventListener('storage',event => { if (event.key === storageKey && key) clearPrivateView(); });
+    resetRecordForm();
+  </script>
+</body>
+</html>

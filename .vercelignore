@@ -1,0 +1,13 @@
+.git/
+.omo/
+.env
+.env.*
+*.pem
+*.key
+node_modules/
+supabase/
+tests/
+MVP.md
+KAKAO_SETUP.md
+README.md
+진행기록.md
