@@ -9,7 +9,7 @@ function app() {
   const values = new Map(), elements = new Map();
   const element = () => ({value:'',textContent:'',hidden:false,disabled:false,files:[],handlers:{},classList:{add(){},remove(){}},addEventListener(name,handler){this.handlers[name]=handler;},reset(){},removeAttribute(name){delete this[name];},querySelectorAll(){return [];},replaceChildren(){},append(){},focus(){},showModal(){this.open=true;},close(){this.open=false;this.handlers.close?.();}});
   const storage = {getItem(name){return values.get(name) ?? null;},setItem(name,value){values.set(name,value);}};
-  const context = vm.createContext({crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Date,Blob,URL,btoa,atob,setTimeout:()=>0,clearTimeout(){},localStorage:storage,window:{addEventListener(){},scrollTo(){}},document:{createElement:element,getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},querySelectorAll(){return [];},addEventListener(){}}});
+  const context = vm.createContext({crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Date,Blob,URL,AbortController,btoa,atob,setTimeout:()=>0,clearTimeout(){},localStorage:storage,window:{addEventListener(){},scrollTo(){}},document:{createElement:element,getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},querySelectorAll(){return [];},addEventListener(){}}});
   const script = fs.readFileSync(require.resolve('../index.html'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
   vm.runInContext(script,context);
   return {run:code=>vm.runInContext(code,context),storage,context,elements};
@@ -80,6 +80,29 @@ test('search and reaction filter intersect without modifying records',()=> {
   assert.equal(instance.run("filteredRecords(fixtures,'시험 병원','good').length"),1);
   assert.equal(instance.run("filteredRecords(fixtures,'없는 이름','all').length"),0);
   assert.equal(instance.run('fixtures.length'),2);
+});
+test('FDA label parsing preserves product identity and never invents missing ingredients',()=> {
+  const instance=app();
+  instance.context.labels=[{set_id:'37c55543-e05e-2f7c-e063-6394a90a4534',effective_time:'20250620',openfda:{brand_name:['DayQuil'],substance_name:['ACETAMINOPHEN','DEXTROMETHORPHAN HYDROBROMIDE']},active_ingredient:['Acetaminophen 325 mg']},{set_id:'37c55543-e05e-2f7c-e063-6394a90a4534'},{set_id:'https://malicious.test'},{set_id:'5fe09385-c207-49e9-bc08-f09bfd949b86'}];
+  const products=instance.run('fdaProducts(labels)');
+  assert.equal(products.length,2);
+  assert.equal(products[0].ingredients,'ACETAMINOPHEN, DEXTROMETHORPHAN HYDROBROMIDE');
+  assert.equal(products[0].updated,'라벨 날짜 2025-06-20');
+  assert.equal(products[1].ingredients,'');
+  assert.match(products[0].source,/^https:\/\/dailymed.nlm.nih.gov\//);
+});
+test('FDA search sends only the typed product query and preserves private records when the service fails',async()=> {
+  const instance=await savedApp(), original=instance.storage.getItem('my-medicine-note.v1');
+  instance.run("$('drug-country').value='us'; $('drug-query').value='DayQuil';");
+  let requested;
+  instance.context.fetch=async(url,options)=>{requested={url:String(url),options};return {ok:false,status:429};};
+  await instance.elements.get('drug-search-form').handlers.submit({preventDefault(){}});
+  assert.equal(new URL(requested.url).origin,'https://api.fda.gov');
+  assert.equal(new URL(requested.url).searchParams.get('search'),'openfda.brand_name:"DayQuil"');
+  assert.equal(requested.options.body,undefined);
+  assert.equal(requested.options.credentials,'omit');
+  assert.equal(instance.storage.getItem('my-medicine-note.v1'),original);
+  assert.match(instance.elements.get('drug-status').textContent,/불러오지 못했어요/);
 });
 test('actual export and restore handlers round trip an encrypted file and reject a wrong password',async()=> {
   const source = await savedApp();
