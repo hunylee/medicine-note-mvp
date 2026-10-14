@@ -66,6 +66,21 @@ test('stale tab cannot overwrite a newer vault',async()=> {
 test('large encrypted data encodes without argument stack overflow',()=> {
   const instance = app(); assert.equal(instance.run('bytes(base64(new Uint8Array(200000))).length'),200000);
 });
+test('reaction classification never treats unknown records or a good effect with a reaction as reaction-free',()=> {
+  const instance=app();
+  instance.context.fixtures=[record,{...record,id:'reaction',allergy:'있었어요'},{...record,id:'unknown',allergy:'잘 모르겠어요'},{...record,id:'legacy',allergy:''}];
+  assert.equal(instance.run("filteredRecords(fixtures,'','good').length"),1);
+  assert.equal(instance.run("filteredRecords(fixtures,'','reaction')[0].id"),'reaction');
+  assert.equal(instance.run("filteredRecords(fixtures,'','unknown').length"),2);
+});
+test('search and reaction filter intersect without modifying records',()=> {
+  const instance=app();
+  instance.context.fixtures=[record,{...record,id:'reaction',allergy:'있었어요',ingredients:'성분 ABC'}];
+  assert.equal(instance.run("filteredRecords(fixtures,' abc ','reaction').length"),1);
+  assert.equal(instance.run("filteredRecords(fixtures,'시험 병원','good').length"),1);
+  assert.equal(instance.run("filteredRecords(fixtures,'없는 이름','all').length"),0);
+  assert.equal(instance.run('fixtures.length'),2);
+});
 test('actual export and restore handlers round trip an encrypted file and reject a wrong password',async()=> {
   const source = await savedApp();
   await source.elements.get('backup-export').handlers.click();

@@ -13,7 +13,7 @@
     * { box-sizing:border-box; }
     [hidden] { display:none !important; }
     body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-size:17px; line-height:1.7; word-break:keep-all; overflow-wrap:break-word; }
-    button,input,textarea { font:inherit; }
+    button,input,textarea,select { font:inherit; }
     button,a,input,textarea,summary { -webkit-tap-highlight-color:transparent; }
     button { cursor:pointer; }
     button:disabled { opacity:.65; cursor:wait; }
@@ -95,6 +95,11 @@
     .btn.danger { background:var(--error); color:var(--paper); }
     a.btn { text-decoration:none; }
     .editing-note { margin-bottom:16px; }
+    .record-warning { border-left:4px solid var(--error); }
+    .pill.warning { color:var(--error); background:var(--paper); border:1px solid var(--error); margin-bottom:8px; }
+    .record-tools { margin:24px 0; }
+    .record-tools .field { margin-bottom:16px; }
+    select { width:100%; min-height:50px; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); }
     .record details { margin-top:16px; border-top:1px solid var(--line); padding-top:8px; }
     summary { cursor:pointer; min-height:44px; padding:8px 0; font-size:15px; color:var(--muted); }
     .record dl { margin:12px 0 0; font-size:15px; }
@@ -181,6 +186,12 @@
         <p class="quiet">파일은 기록 비밀번호로 잠겨 있어요. 다른 기기에서 열 때도 그 비밀번호가 필요해요.</p>
         <p id="backup-status" class="status" role="status" aria-live="polite"></p>
         <a id="backup-download" class="btn secondary full" hidden>백업 파일 저장하기</a>
+        <div class="record-tools">
+          <div class="field"><label for="record-search">그때 먹은 약을 찾아볼까요?</label><input id="record-search" type="search" maxlength="100" placeholder="약 이름, 병원 또는 성분" autocomplete="off"></div>
+          <div class="field"><label for="record-filter">어떤 기록을 볼까요?</label><select id="record-filter"><option value="all">전체 기록</option><option value="reaction">반응이 있었어요</option><option value="good">반응 없이 잘 들었어요</option><option value="unknown">반응 여부를 모르겠어요</option><option value="ineffective">별로 효과가 없었어요</option></select></div>
+          <button id="record-filter-reset" class="text-btn" type="button">검색과 분류 초기화</button>
+          <p id="record-results" class="status" role="status" aria-live="polite"></p>
+        </div>
         <div id="records"></div>
         <p class="notice">직접 느낀 효과를 남긴 기록이에요. 약을 바꾸고 싶다면 이 기록을 의사나 약사에게 보여 주세요.</p>
         <button class="btn secondary full" data-screen="signup">정식 버전 나오면 알려 주세요</button>
@@ -261,6 +272,7 @@
       pendingDeleteId = null; $('delete-name').textContent = ''; $('delete-status').textContent = ''; $('restore-form').reset(); $('restore-status').textContent = ''; $('backup-status').textContent = '';
       if ($('kakao-dialog').open) $('kakao-dialog').close();
       key = null; salt = null; entries = []; clearTimeout(idleTimer); idleExpired = false;
+      $('record-search').value = ''; $('record-filter').value = 'all'; $('record-results').textContent = '';
       $('records').replaceChildren(); $('count').textContent = '0개'; resetRecordForm(); $('signup-form').reset(); $('lock').hidden = true;
       $('vault-form').reset(); $('vault-status').textContent = '';
       if ($('vault-dialog').open) $('vault-dialog').close(); showScreen('landing');
@@ -361,14 +373,27 @@
       finally { setBusy(false); }
     });
     function element(tag,className,text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
+    function filteredRecords(records,query,filter) {
+      const term = query.trim().normalize('NFKC').toLocaleLowerCase('ko');
+      return records.filter(entry=> {
+        const matchesText = !term || [entry.medicine,entry.hospital,entry.ingredients].some(value=>(value || '').normalize('NFKC').toLocaleLowerCase('ko').includes(term));
+        const matchesFilter = filter === 'reaction' ? entry.allergy === '있었어요' : filter === 'good' ? entry.allergy === '없었어요' && entry.effect === '잘 들었어요' : filter === 'unknown' ? !entry.allergy || entry.allergy === '잘 모르겠어요' : filter === 'ineffective' ? entry.effect === '별로 효과가 없었어요' : true;
+        return matchesText && matchesFilter;
+      });
+    }
     function renderRecords() {
       const root = $('records'); root.replaceChildren(); $('count').textContent = entries.length + '개';
+      const visible = filteredRecords(entries,$('record-search').value,$('record-filter').value);
+      $('record-results').textContent = entries.length ? '전체 '+entries.length+'개 중 '+visible.length+'개를 보고 있어요.' : '';
       if (!entries.length) { const empty = element('div','empty'); empty.append(element('h3','', '아직 남긴 기록이 없어요'),element('p','','이번에 먹은 감기약부터 적어 볼까요?')); root.append(empty); return; }
-      for (const entry of entries) {
+      if (!visible.length) { const empty = element('div','empty'); empty.append(element('h3','','찾는 기록이 없어요'),element('p','','검색어나 분류를 바꿔 보세요. 저장한 기록은 그대로 있어요.')); root.append(empty); return; }
+      for (const entry of visible) {
         const card = element('article','panel record'); const top = element('div','card-top');
         const [year,month,day] = entry.date.split('-'); top.append(element('span','','나의 복용 경험'),element('time','',`${year}년 ${Number(month)}월 ${Number(day)}일`));
         const effectLabel = entry.allergy === '없었어요' && entry.effect === '잘 들었어요' ? '알레르기 반응 없이 잘 들었어요' : entry.effect;
-        card.append(top,element('h3','',entry.medicine),element('span','pill',effectLabel));
+        card.append(top,element('h3','',entry.medicine));
+        if (entry.allergy === '있었어요') { card.classList.add('record-warning'); card.append(element('span','pill warning','알레르기 반응을 기록했어요'),element('p','record-note','약이나 성분을 다시 확인할 때 의사·약사에게 이 경험을 알려 주세요.')); }
+        card.append(element('span','pill',effectLabel));
         card.append(element('p','record-note','성분: ' + (entry.ingredients || '적은 내용이 없어요')));
         card.append(element('p','record-note','알레르기 반응: ' + (entry.allergy || '아직 기록하지 않았어요')));
         if (entry.allergyReaction) card.append(element('p','record-note','반응 메모: ' + entry.allergyReaction));
@@ -383,6 +408,9 @@
         actions.append(edit,remove); card.append(actions);
       }
     }
+    $('record-search').addEventListener('input',renderRecords);
+    $('record-filter').addEventListener('change',renderRecords);
+    $('record-filter-reset').addEventListener('click',()=> { $('record-search').value = ''; $('record-filter').value = 'all'; renderRecords(); });
     $('record-form').addEventListener('submit',async event => {
       event.preventDefault(); if (busy) return; if (!key) { openVault(); return; }
       const form = new FormData(event.currentTarget); const medicine = String(form.get('medicine') || '').trim(), date = String(form.get('date') || ''), effect = form.get('effect');
