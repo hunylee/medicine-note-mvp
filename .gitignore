@@ -12,3 +12,4 @@ supabase/.temp/
 진행기록.md
 .vercel
 .env*
+*.medicine-note.json
