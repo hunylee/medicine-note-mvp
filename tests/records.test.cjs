@@ -91,6 +91,24 @@ test('FDA label parsing preserves product identity and never invents missing ing
   assert.equal(products[1].ingredients,'');
   assert.match(products[0].source,/^https:\/\/dailymed.nlm.nih.gov\//);
 });
+test('import ingredient matching distinguishes codeine from dihydrocodeine and recognizes salts across languages',()=> {
+  const instance=app();
+  assert.equal(instance.run("importMatches('DEXTROMETHORPHAN HYDROBROMIDE')[0].rule.id"),'dxm');
+  assert.equal(instance.run("importMatches('디히드로코데인타르타르산염').length"),1);
+  assert.equal(instance.run("importMatches('디히드로코데인타르타르산염')[0].rule.id"),'dihydrocodeine');
+  assert.equal(instance.run("importMatches('ジヒドロコデインリン酸塩')[0].rule.id"),'dihydrocodeine');
+  assert.equal(instance.run("importMatches('codeine phosphate')[0].rule.id"),'codeine');
+  assert.equal(instance.run("importMatches('codeine phosphate, dihydrocodeine tartrate').length"),2);
+});
+test('import guide treats brand names as examples and never marks unrecognized products as permitted',()=> {
+  const instance=app();
+  assert.equal(instance.run("importMatches('DayQuil Cold and Flu')[0].matchedBy"),'example');
+  assert.equal(instance.run("importMatches('DayQuil DEXTROMETHORPHAN')[0].matchedBy"),'ingredient');
+  assert.equal(instance.run("importMatches('아세트아미노펜, DL-메틸에페드린염산염, 슈도에페드린').length"),0);
+  assert.equal(instance.run("importMatches('noncodeine, mydayquilbrand').length"),0);
+  instance.run("$('import-query').value='알 수 없는 제품'; renderImportResults();");
+  assert.match(instance.elements.get('import-status').textContent,/반입 가능 판정이 아니/);
+});
 test('FDA search sends only the typed product query and preserves private records when the service fails',async()=> {
   const instance=await savedApp(), original=instance.storage.getItem('my-medicine-note.v1');
   instance.run("$('drug-country').value='us'; $('drug-query').value='DayQuil';");
