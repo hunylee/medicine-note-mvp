@@ -170,7 +170,8 @@
         <button id="drug-open" class="btn secondary full" type="button">약 이름으로 성분 찾아보기</button><p class="notice">국내 등록 제품과 미국 FDA 자료를 확인하고 내 기록에 넣을 수 있어요.</p>
         <button id="scan-open" class="btn secondary full" type="button">바코드·QR 찍어서 성분 보기</button>
         <div id="edit-notice" class="editing-note" hidden><p class="quiet">저장하면 선택한 기록의 내용만 바뀌어요.</p><button id="edit-cancel" class="text-btn" type="button">수정 취소하기</button></div>
-        <div class="field"><label for="medicine">어떤 처방이었나요?</label><input id="medicine" name="medicine" required maxlength="100" placeholder="예: A병원에서 받은 감기약"><p class="quiet">약 이름을 몰라도 내가 알아볼 수 있게 적어 주세요.</p></div>
+        <div class="field"><label for="medicine">어떤 약이었나요?</label><input id="medicine" name="medicine" required maxlength="100" placeholder="예: A병원에서 받은 감기약 또는 제품명"><p class="quiet">약 이름을 몰라도 내가 알아볼 수 있게 적어 주세요.</p></div>
+        <div class="field"><label for="supply-type">어떻게 받은 약인가요?</label><select id="supply-type" name="supplyType"><option value="잘 모르겠어요">잘 모르겠어요</option><option value="처방받은 약">처방받은 약</option><option value="약국에서 산 일반 감기약">약국에서 산 일반 감기약</option></select><p class="quiet">내가 약을 받은 방법을 기록해요. 처방에 일반의약품이 포함될 수도 있어 제품의 전문·일반 분류와는 달라요.</p></div>
         <div class="field-row"><div class="field"><label for="date">언제 먹었나요?</label><input id="date" name="date" type="date" required></div><div class="field"><label for="hospital">어느 병원인가요?<span class="optional">선택</span></label><input id="hospital" name="hospital" maxlength="100" placeholder="병원 이름"></div></div>
         <div class="field"><label for="ingredients">약에 어떤 성분이 들어 있었나요?<span class="optional">선택</span></label><input id="ingredients" name="ingredients" maxlength="500" placeholder="약 봉투나 설명서에 적힌 성분 이름"><p class="quiet">모르면 비워 두셔도 돼요. 반응과 함께 기억해 두고 싶은 성분을 적어 주세요.</p></div>
         <div id="import-inline" aria-live="polite"></div><button id="import-feature-open" class="text-btn" type="button">국내 반입 제한 성분 안내 보기</button>
@@ -196,7 +197,7 @@
         <a id="backup-download" class="btn secondary full" hidden>백업 파일 저장하기</a>
         <div class="record-tools">
           <div class="field"><label for="record-search">그때 먹은 약을 찾아볼까요?</label><input id="record-search" type="search" maxlength="100" placeholder="약 이름, 병원 또는 성분" autocomplete="off"></div>
-          <div class="field"><label for="record-filter">어떤 기록을 볼까요?</label><select id="record-filter"><option value="all">전체 기록</option><option value="reaction">반응이 있었어요</option><option value="good">반응 없이 잘 들었어요</option><option value="unknown">반응 여부를 모르겠어요</option><option value="ineffective">별로 효과가 없었어요</option></select></div>
+          <div class="field"><label for="record-filter">어떤 기록을 볼까요?</label><select id="record-filter"><option value="all">전체 기록</option><option value="prescribed">처방받은 약</option><option value="pharmacy">약국에서 산 일반 감기약</option><option value="supply-unknown">받은 방법 미확인</option><option value="reaction">반응이 있었어요</option><option value="good">반응 없이 잘 들었어요</option><option value="unknown">반응 여부를 모르겠어요</option><option value="ineffective">별로 효과가 없었어요</option></select></div>
           <button id="record-filter-reset" class="text-btn" type="button">검색과 분류 초기화</button>
           <p id="record-results" class="status" role="status" aria-live="polite"></p>
         </div>
@@ -361,19 +362,21 @@
       for (const item of raw) {
         if (!item || typeof item !== 'object') throw new Error('Invalid record');
         const record = {};
-        for (const [field,limit] of [['medicine',100],['date',10],['effect',30],['hospital',100],['memo',1500],['ingredients',500],['allergy',30],['allergyReaction',1000]]) {
+        for (const [field,limit] of [['medicine',100],['date',10],['effect',30],['hospital',100],['memo',1500],['ingredients',500],['allergy',30],['allergyReaction',1000],['supplyType',30]]) {
           const value = item[field] ?? '';
           if (typeof value !== 'string' || Array.from(value).length > limit) throw new Error('Invalid field');
           record[field] = value;
         }
         if (!record.medicine.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(record.date) || !['잘 들었어요','조금 나아졌어요','잘 모르겠어요','별로 효과가 없었어요'].includes(record.effect) || !['','있었어요','없었어요','잘 모르겠어요'].includes(record.allergy)) throw new Error('Invalid record values');
         const day = new Date(record.date+'T00:00:00Z');
+        if (!['','잘 모르겠어요','처방받은 약','약국에서 산 일반 감기약'].includes(record.supplyType)) throw new Error('Invalid supply type');
         if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0,10) !== record.date) throw new Error('Invalid date');
         if (typeof item.id === 'string' && /^(?:[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}|legacy-[a-f\d]{64})$/i.test(item.id)) record.id = item.id;
         else {
-          const content = JSON.stringify(record), occurrence = legacyCounts.get(content) || 0;
+          const identity = {...record}; delete identity.supplyType;
+          const content = JSON.stringify(identity), occurrence = legacyCounts.get(content) || 0;
           legacyCounts.set(content,occurrence+1);
-          record.id = 'legacy-' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(JSON.stringify([record,occurrence]))))).map(value=>value.toString(16).padStart(2,'0')).join('');
+          record.id = 'legacy-' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(JSON.stringify([identity,occurrence]))))).map(value=>value.toString(16).padStart(2,'0')).join('');
         }
         if (ids.has(record.id)) throw new Error('Duplicate record identity');
         ids.add(record.id); records.push(record);
@@ -592,7 +595,7 @@
       const term = query.trim().normalize('NFKC').toLocaleLowerCase('ko');
       return records.filter(entry=> {
         const matchesText = !term || [entry.medicine,entry.hospital,entry.ingredients].some(value=>(value || '').normalize('NFKC').toLocaleLowerCase('ko').includes(term));
-        const matchesFilter = filter === 'reaction' ? entry.allergy === '있었어요' : filter === 'good' ? entry.allergy === '없었어요' && entry.effect === '잘 들었어요' : filter === 'unknown' ? !entry.allergy || entry.allergy === '잘 모르겠어요' : filter === 'ineffective' ? entry.effect === '별로 효과가 없었어요' : true;
+        const matchesFilter = filter === 'prescribed' ? entry.supplyType === '처방받은 약' : filter === 'pharmacy' ? entry.supplyType === '약국에서 산 일반 감기약' : filter === 'supply-unknown' ? !entry.supplyType || entry.supplyType === '잘 모르겠어요' : filter === 'reaction' ? entry.allergy === '있었어요' : filter === 'good' ? entry.allergy === '없었어요' && entry.effect === '잘 들었어요' : filter === 'unknown' ? !entry.allergy || entry.allergy === '잘 모르겠어요' : filter === 'ineffective' ? entry.effect === '별로 효과가 없었어요' : true;
         return matchesText && matchesFilter;
       });
     }
@@ -607,13 +610,14 @@
         const [year,month,day] = entry.date.split('-'); top.append(element('span','','나의 복용 경험'),element('time','',`${year}년 ${Number(month)}월 ${Number(day)}일`));
         const effectLabel = entry.allergy === '없었어요' && entry.effect === '잘 들었어요' ? '알레르기 반응 없이 잘 들었어요' : entry.effect;
         card.append(top,element('h3','',entry.medicine));
+        card.append(element('p','record-note','받은 방법: '+(entry.supplyType || '아직 기록하지 않았어요')));
         if (entry.allergy === '있었어요') { card.classList.add('record-warning'); card.append(element('span','pill warning','알레르기 반응을 기록했어요'),element('p','record-note','약이나 성분을 다시 확인할 때 의사·약사에게 이 경험을 알려 주세요.')); }
         card.append(element('span','pill',effectLabel));
         card.append(element('p','record-note','성분: ' + (entry.ingredients || '적은 내용이 없어요')));
         card.append(element('p','record-note','알레르기 반응: ' + (entry.allergy || '아직 기록하지 않았어요')));
         if (entry.allergyReaction) card.append(element('p','record-note','반응 메모: ' + entry.allergyReaction));
         const details = document.createElement('details'); details.append(element('summary','','그때 기록 자세히 보기')); const list = document.createElement('dl');
-        for (const [label,value] of [['처방 이름',entry.medicine],['병원',entry.hospital || '적은 내용이 없어요'],['약 성분',entry.ingredients || '적은 내용이 없어요'],['알레르기 반응',entry.allergy || '아직 기록하지 않았어요'],['알레르기 반응 메모',entry.allergyReaction || '적은 내용이 없어요'],['먹고 불편했던 점',entry.memo || '적은 내용이 없어요']]) list.append(element('dt','',label),element('dd','',value));
+        for (const [label,value] of [['처방 이름',entry.medicine],['받은 방법',entry.supplyType || '아직 기록하지 않았어요'],['병원',entry.hospital || '적은 내용이 없어요'],['약 성분',entry.ingredients || '적은 내용이 없어요'],['알레르기 반응',entry.allergy || '아직 기록하지 않았어요'],['알레르기 반응 메모',entry.allergyReaction || '적은 내용이 없어요'],['먹고 불편했던 점',entry.memo || '적은 내용이 없어요']]) list.append(element('dt','',label),element('dd','',value));
         details.append(list); card.append(details);
         const send = element('button','btn secondary send-button','카카오톡으로 나에게 보내기');
         send.type = 'button'; send.addEventListener('click',()=> openKakao(entry)); card.append(send); root.append(card);
@@ -634,7 +638,7 @@
         if (!medicine) $('medicine').focus(); else if (!date || !$('date').validity.valid) $('date').focus(); else event.currentTarget.querySelector('input[name=effect]').focus(); return;
       }
       const wasEditing = editingId !== null;
-      const record = {id:editingId || crypto.randomUUID(),medicine,date,effect:String(effect),hospital:String(form.get('hospital') || '').trim(),memo:String(form.get('memo') || '').trim(),ingredients:String(form.get('ingredients') || '').trim(),allergy:String(form.get('allergy') || '잘 모르겠어요'),allergyReaction:String(form.get('allergyReaction') || '').trim()};
+      const record = {id:editingId || crypto.randomUUID(),medicine,date,effect:String(effect),hospital:String(form.get('hospital') || '').trim(),memo:String(form.get('memo') || '').trim(),ingredients:String(form.get('ingredients') || '').trim(),allergy:String(form.get('allergy') || '잘 모르겠어요'),allergyReaction:String(form.get('allergyReaction') || '').trim(),supplyType:String(form.get('supplyType') || '잘 모르겠어요')};
       const next = wasEditing ? entries.map(entry=>entry.id === editingId ? record : entry) : [record,...entries];
       setBusy(true); $('record-status').classList.remove('error'); $('record-status').textContent = '내 기록을 저장하고 있어요…';
       try { await persist(next); clearBackupLink(); entries = next; renderRecords(); resetRecordForm(); $('record-status').textContent = wasEditing ? '기록을 수정했어요.' : '기록했어요. 다음에 궁금할 때 다시 확인해 보세요.'; }
@@ -645,6 +649,7 @@
       if (busy || !key) return; const entry = entries.find(record=>record.id===id); if (!entry) return;
       resetRecordForm(); editingId = id;
       for (const [field,input] of [['medicine','medicine'],['date','date'],['hospital','hospital'],['ingredients','ingredients'],['memo','memo'],['allergyReaction','allergy-reaction']]) $(input).value = entry[field] || '';
+      $('supply-type').value=entry.supplyType || '잘 모르겠어요';
       for (const radio of $('record-form').querySelectorAll('input[type=radio]')) radio.checked = radio.value === (radio.name === 'effect' ? entry.effect : entry.allergy || '잘 모르겠어요');
       $('edit-notice').hidden = false; $('record-form-title').textContent = '복용 기록 수정하기'; $('save').textContent = '수정한 내용 저장하기'; $('medicine').focus();
       refreshImportInline();

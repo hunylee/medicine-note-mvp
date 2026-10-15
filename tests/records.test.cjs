@@ -14,7 +14,7 @@ function app() {
   vm.runInContext(script,context);
   return {run:code=>vm.runInContext(code,context),storage,context,elements};
 }
-const record = {id:'5fe09385-c207-49e9-bc08-f09bfd949b86',medicine:'시험 처방',date:'2026-10-13',effect:'잘 들었어요',ingredients:'시험 성분',allergy:'없었어요',allergyReaction:'',hospital:'시험 병원',memo:'시험 메모'};
+const record = {id:'5fe09385-c207-49e9-bc08-f09bfd949b86',medicine:'시험 처방',date:'2026-10-13',effect:'잘 들었어요',ingredients:'시험 성분',allergy:'없었어요',allergyReaction:'',hospital:'시험 병원',memo:'시험 메모',supplyType:'처방받은 약'};
 async function savedApp() {
   const instance = app(); instance.context.fixture = record;
   await instance.run("(async()=>{salt = crypto.getRandomValues(new Uint8Array(16)); key = await derive('TestOnly-Password',salt); entries = await parseRecords([fixture]); await persist(entries);})()");
@@ -47,6 +47,18 @@ test('restoring a backup adds missing records and preserves current edits',async
   const merged = instance.run('mergeRecords(current,backup)');
   assert.equal(merged.length,2); assert.equal(merged[1].medicine,instance.context.current[0].medicine);
   instance.context.merged = merged; assert.equal(instance.run('mergeRecords(merged,backup)').length,2);
+});
+test('supply type keeps old record identities stable and never classifies an old record as OTC',async()=> {
+  const instance=app(); const legacy={medicine:record.medicine,date:record.date,effect:record.effect,hospital:record.hospital,memo:record.memo,ingredients:record.ingredients,allergy:record.allergy,allergyReaction:record.allergyReaction};
+  instance.context.legacy=legacy;
+  const parsed=await instance.run('parseRecords([legacy])');
+  const expected='legacy-'+require('node:crypto').createHash('sha256').update(JSON.stringify([legacy,0])).digest('hex');
+  assert.equal(parsed[0].id,expected); assert.equal(parsed[0].supplyType,'');
+  instance.context.fixtures=[parsed[0],{...record,supplyType:'처방받은 약'},{...record,supplyType:'약국에서 산 일반 감기약'}];
+  assert.equal(instance.run("filteredRecords(fixtures,'','prescribed').length"),1);
+  assert.equal(instance.run("filteredRecords(fixtures,'','pharmacy').length"),1);
+  assert.equal(instance.run("filteredRecords(fixtures,'','supply-unknown').length"),1);
+  await assert.rejects(instance.run("parseRecords([{...legacy,supplyType:'자동 추천약'}])"));
 });
 test('invalid backup schema and duplicate identities are rejected',async()=> {
   const instance = app(); instance.context.fixture = record;
