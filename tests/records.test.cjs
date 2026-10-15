@@ -100,6 +100,34 @@ test('import ingredient matching distinguishes codeine from dihydrocodeine and r
   assert.equal(instance.run("importMatches('codeine phosphate')[0].rule.id"),'codeine');
   assert.equal(instance.run("importMatches('codeine phosphate, dihydrocodeine tartrate').length"),2);
 });
+test('scanner validates barcode check digits and extracts only GTIN from GS1 QR formats',()=> {
+  const instance=app();
+  for (const value of ['8806265001309','08806265001309','(01)08806265001309(17)271231',']d2010880626500130917271231','https://id.gs1.org/01/08806265001309/21/test']) {
+    instance.context.input=value; assert.equal(instance.run('barcodeNumber(input)'),'08806265001309');
+  }
+  for (const value of ['8806265001308','0000000000000','https://example.com/record?name=private','javascript:alert(1)','880626500130','12345']) {
+    instance.context.input=value; assert.equal(instance.run('barcodeNumber(input)'),null);
+  }
+  assert.equal(instance.run("barcodeProduct(barcodeNumber('8806265001309')).name"),'판피린큐액');
+  assert.equal(instance.run("barcodeProduct(barcodeNumber('8806265000609')).name"),'판피린티정');
+});
+test('domestic barcode lookup stays local and external barcode lookup sends no photo or private record',async()=> {
+  const instance=await savedApp(); let request=null;
+  instance.context.fetch=async(url,options)=> { request={url:String(url),options}; return {status:404,ok:false}; };
+  await instance.run("lookupBarcode('8806265001309')"); assert.equal(request,null);
+  await instance.run("lookupBarcode('https://private.invalid/patient?id=secret')"); assert.equal(request,null);
+  await instance.run("lookupBarcode('0094187378441')");
+  assert.equal(new URL(request.url).origin,'https://api.fda.gov'); assert.equal(request.options.body,undefined);
+  assert.match(new URL(request.url).searchParams.get('search'),/openfda.upc/);
+  assert.match(instance.elements.get('scan-status').textContent,/찾지 못했어요/);
+});
+test('stopping the scanner releases video tracks and its scan controls',()=> {
+  const instance=app(); let stopped=0;
+  instance.context.track={stop(){stopped++;}}; instance.context.controls={stop(){stopped++;}};
+  instance.run('scanStream={getTracks:()=>[track]}; scanControls=controls; stopScanCamera();');
+  assert.equal(stopped,2); assert.equal(instance.run('scanStream'),null); assert.equal(instance.run('scanControls'),null);
+  assert.equal(instance.elements.get('scan-video').srcObject,null);
+});
 test('import guide treats brand names as examples and never marks unrecognized products as permitted',()=> {
   const instance=app();
   assert.equal(instance.run("importMatches('DayQuil Cold and Flu')[0].matchedBy"),'example');

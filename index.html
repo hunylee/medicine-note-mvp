@@ -102,6 +102,7 @@
     .import-note { border:1px solid var(--error); border-radius:var(--small-radius); padding:var(--s2); margin:var(--s2) 0; }
     .import-note h3 { color:var(--error); font-size:17px; margin:0 0 var(--s1); }
     .import-note p { font-size:14px; margin:var(--s1) 0; }
+    #scan-video { width:100%; max-height:280px; border-radius:var(--small-radius); background:var(--ink); margin:var(--s2) 0; }
     select { width:100%; min-height:50px; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); }
     .record details { margin-top:16px; border-top:1px solid var(--line); padding-top:8px; }
     summary { cursor:pointer; min-height:44px; padding:8px 0; font-size:15px; color:var(--muted); }
@@ -167,6 +168,7 @@
       <div class="workspace"><form id="record-form" class="panel" novalidate>
         <h2 id="record-form-title">이번에 먹은 감기약</h2>
         <button id="drug-open" class="btn secondary full" type="button">약 이름으로 성분 찾아보기</button><p class="notice">국내 등록 제품과 미국 FDA 자료를 확인하고 내 기록에 넣을 수 있어요.</p>
+        <button id="scan-open" class="btn secondary full" type="button">바코드·QR 찍어서 성분 보기</button>
         <div id="edit-notice" class="editing-note" hidden><p class="quiet">저장하면 선택한 기록의 내용만 바뀌어요.</p><button id="edit-cancel" class="text-btn" type="button">수정 취소하기</button></div>
         <div class="field"><label for="medicine">어떤 처방이었나요?</label><input id="medicine" name="medicine" required maxlength="100" placeholder="예: A병원에서 받은 감기약"><p class="quiet">약 이름을 몰라도 내가 알아볼 수 있게 적어 주세요.</p></div>
         <div class="field-row"><div class="field"><label for="date">언제 먹었나요?</label><input id="date" name="date" type="date" required></div><div class="field"><label for="hospital">어느 병원인가요?<span class="optional">선택</span></label><input id="hospital" name="hospital" maxlength="100" placeholder="병원 이름"></div></div>
@@ -225,6 +227,17 @@
       <div class="field" id="confirm-field"><label for="confirm-password">비밀번호 다시 입력</label><input id="confirm-password" type="password" autocomplete="off" maxlength="128"></div>
       <p id="vault-status" class="status error" role="status"></p><div class="dialog-actions"><button class="btn secondary" id="vault-cancel" type="button">돌아가기</button><button class="btn" id="vault-submit" type="submit">정하고 시작하기</button></div>
     </form>
+  </dialog>
+  <dialog id="scan-dialog" aria-labelledby="scan-title">
+    <h2 id="scan-title">약 상자의 코드를 찍어 주세요</h2>
+    <p class="sub">제품 바코드나 제품번호가 담긴 QR을 읽어요. 촬영 영상·사진은 기기 안에서만 처리해요. 해외 조회에는 읽은 제품 코드만 FDA로 보내요.</p>
+    <button id="scan-camera" class="btn full" type="button">카메라로 찍기</button><button id="scan-stop" class="text-btn" type="button" hidden>카메라 끄기</button>
+    <video id="scan-video" autoplay muted playsinline aria-label="바코드 촬영 미리보기" hidden></video>
+    <div class="field"><label for="scan-photo">사진 찍기 또는 사진에서 읽기</label><input id="scan-photo" type="file" accept="image/*" capture="environment"></div>
+    <form id="scan-form"><div class="field"><label for="scan-code">읽은 코드 · 직접 입력도 가능해요</label><input id="scan-code" maxlength="500" autocomplete="off" placeholder="바코드 아래 숫자 또는 GS1 QR 내용"></div><button id="scan-lookup" class="btn secondary full" type="submit">이 코드로 성분 찾기</button></form>
+    <p id="scan-status" class="status" role="status" aria-live="polite"></p><div id="scan-results"></div>
+    <p class="notice">국내는 확인된 판피린큐액·판피린티정 코드만 연결돼요. 해외는 FDA에 UPC가 등록된 제품만 조회돼요. 일반 웹주소·처방전 QR과 등록되지 않은 약은 찾지 못할 수 있어요. 제품명·제형이 약 상자와 같은지 확인해 주세요.</p>
+    <button id="scan-close" class="btn secondary full" type="button">닫기</button>
   </dialog>
   <dialog id="import-dialog" aria-labelledby="import-title">
     <h2 id="import-title">국내 반입 전에 성분을 확인해요</h2>
@@ -288,6 +301,11 @@
     let storageSnapshot = null, privateEpoch = 0;
     let backupUrl = null;
     let drugRequest = null, drugSearchId = 0;
+    let scannerLibrary = null, scanControls = null, scanStream = null, scanTimer = null, cameraGeneration = 0, scanSession = 0, scanLookupId = 0, scanRequest = null, scanImageBusy = false;
+    const domesticBarcodeGroups = [
+      {index:0,item:'200700547',codes:['8806265001309','8806265001316','8806265001323','8806265001330','8806425036202','8806425036219','8806425036226','8806425036233']},
+      {index:1,item:'199400202',codes:['8806265000609','8806265000623','8806265000630','8806265000647','8806265000654','8806265000661','8806265000678','8806265000685','8806425036301','8806425036318','8806425036325','8806425036332','8806425036349','8806425036356','8806425036363','8806425036370']}
+    ];
     const customsSource='https://www.customs.go.kr/kcs/cm/cntnts/cntntsView.do?cntntsId=7640&mi=13807';
     const exemptionSource='https://www.law.go.kr/법령/마약류관리에관한법률시행규칙/제2조';
     const importRules = [
@@ -310,9 +328,11 @@
       if (name !== 'landing') $(name + '-title').focus({preventScroll:true});
     }
     function clearPrivateView() {
+      stopScanCamera(); scanSession++; scanRequest?.abort();
       clearBackupLink();
       privateEpoch++; storageSnapshot = null;
       if ($('drug-dialog').open) $('drug-dialog').close();
+      if ($('scan-dialog').open) $('scan-dialog').close();
       if ($('import-dialog').open) $('import-dialog').close();
       for (const id of ['delete-dialog','restore-dialog']) if ($(id).open) $(id).close();
       pendingDeleteId = null; $('delete-name').textContent = ''; $('delete-status').textContent = ''; $('restore-form').reset(); $('restore-status').textContent = ''; $('backup-status').textContent = '';
@@ -450,6 +470,81 @@
     $('import-close').addEventListener('click',()=> $('import-dialog').close());
     $('import-dialog').addEventListener('close',()=> { $('import-query').value=''; $('import-results').replaceChildren(); $('import-status').textContent=''; });
     for (const id of ['medicine','ingredients']) $(id).addEventListener('input',refreshImportInline);
+    function barcodeNumber(raw) {
+      const text=String(raw || '').trim(); if (text.length>500) return null;
+      let digits=text;
+      if (/^https?:\/\//i.test(text)) { try { digits=new URL(text).pathname.match(/(?:^|\/)01\/(\d{14})(?:\/|$)/)?.[1] || ''; } catch { return null; } }
+      else if (/^(?:\]d2|\]C1)?01\d{14}/.test(text)) digits=text.replace(/^(?:\]d2|\]C1)?01(\d{14})[\s\S]*$/,'$1');
+      else if (/^\(01\)/.test(text)) digits=text.match(/^\(01\)(\d{14})(?:\(|$)/)?.[1] || '';
+      if (!/^(?:\d{12}|\d{13}|\d{14})$/.test(digits) || /^0+$/.test(digits)) return null;
+      let sum=0; for (let i=digits.length-2,weight=3;i>=0;i--,weight=4-weight) sum+=Number(digits[i])*weight;
+      return (10-sum%10)%10===Number(digits.at(-1)) ? digits.padStart(14,'0') : null;
+    }
+    function barcodeProduct(code) {
+      const group=domesticBarcodeGroups.find(group=>group.codes.some(value=>value.padStart(14,'0')===code));
+      return group ? {...domesticDrugs[group.index],name:group.index===1 ? '판피린티정' : domesticDrugs[0].name,basis:group.index===1 ? '1정 중 · 포장 단위는 원문 확인' : domesticDrugs[0].basis,source:'https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?itemSeq='+group.item,updated:'2026-10-15 식약처 표준코드·성분 확인'} : null;
+    }
+    function stopScanCamera() {
+      cameraGeneration++; clearTimeout(scanTimer); scanTimer=null; scanControls?.stop(); scanControls=null;
+      scanStream?.getTracks().forEach(track=>track.stop()); scanStream=null; $('scan-video').srcObject=null; $('scan-video').hidden=true; $('scan-stop').hidden=true; $('scan-camera').disabled=scanImageBusy;
+    }
+    function loadScanner() {
+      if (window.ZXingBrowser) return Promise.resolve(window.ZXingBrowser);
+      if (!scannerLibrary) scannerLibrary=new Promise((resolve,reject)=> {
+        const script=document.createElement('script'), timeout=setTimeout(()=> { script.remove(); scannerLibrary=null; reject(new Error('Scanner load timed out')); },10000);
+        script.src='https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js'; script.integrity='sha384-ylLhng89kD62+PVK1cjm4rAYg69zDlGrbbSfAE2Eb8Xqf8RoAQCMcRoUXZh7pAPC'; script.crossOrigin='anonymous'; script.referrerPolicy='no-referrer';
+        script.onload=()=> { clearTimeout(timeout); if (window.ZXingBrowser) resolve(window.ZXingBrowser); else { scannerLibrary=null; reject(new Error('Scanner unavailable')); } };
+        script.onerror=()=> { clearTimeout(timeout); script.remove(); scannerLibrary=null; reject(new Error('Scanner unavailable')); }; document.head.append(script);
+      });
+      return scannerLibrary;
+    }
+    async function lookupBarcode(raw) {
+      stopScanCamera(); scanRequest?.abort(); const requestId=++scanLookupId, session=scanSession, code=barcodeNumber(raw);
+      $('scan-results').replaceChildren(); $('scan-status').classList.remove('error');
+      if (!code) { $('scan-status').textContent='제품 번호를 확인하지 못했어요. 12~14자리 바코드나 GS1 제품번호가 담긴 QR을 찍어 주세요. 일반 웹주소는 자동으로 열지 않아요.'; return; }
+      const local=barcodeProduct(code); if (local) { renderDrugResults([local],$('scan-results')); $('scan-status').textContent='국내 등록 코드와 일치해요. 약 상자의 제품명·제형을 확인해 주세요.'; return; }
+      const controller=new AbortController(); scanRequest=controller; const timeout=setTimeout(()=>controller.abort(),10000); $('scan-status').textContent='제품 코드로 FDA 라벨을 찾고 있어요…';
+      try {
+        const variants=[code]; if (code.startsWith('0')) variants.push(code.slice(1)); if (code.startsWith('00')) variants.push(code.slice(2));
+        const url=new URL('https://api.fda.gov/drug/label.json'); url.searchParams.set('search',variants.map(value=>'openfda.upc:"'+value+'"').join(' OR ')); url.searchParams.set('limit','8');
+        const response=await fetch(url,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});
+        if (session!==scanSession || requestId!==scanLookupId || !key) return;
+        if (response.status===404) { $('scan-status').textContent='코드는 읽었지만 연결된 의약품을 찾지 못했어요. 국내 전체 바코드 데이터는 아직 연결 전이에요. 약 이름으로 찾아보거나 성분을 직접 적어 주세요.'; return; }
+        if (!response.ok) throw new Error('Lookup unavailable'); const data=await response.json();
+        if (session!==scanSession || requestId!==scanLookupId || !key) return;
+        const exact=(Array.isArray(data.results) ? data.results : []).filter(item=>Array.isArray(item.openfda?.upc) && item.openfda.upc.some(value=>barcodeNumber(value)===code));
+        const products=fdaProducts(exact); renderDrugResults(products,$('scan-results')); $('scan-status').textContent=products.length ? '제품 코드가 일치하는 라벨 '+products.length+'개예요. 성분·제형·원문을 확인해 주세요. 국내 반입 허용을 뜻하지 않아요.' : '정확히 일치하는 의약품 코드를 확인하지 못했어요. 약 이름으로 찾아 주세요.';
+      } catch { if (session===scanSession && requestId===scanLookupId) { $('scan-status').classList.add('error'); $('scan-status').textContent='성분 조회를 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요. 기존 기록은 그대로예요.'; } }
+      finally { clearTimeout(timeout); if (requestId===scanLookupId) scanRequest=null; }
+    }
+    $('scan-open').addEventListener('click',()=> { if (!key || busy) return; scanSession++; $('scan-code').value=''; $('scan-status').textContent='카메라나 사진으로 읽거나, 바코드 아래 숫자를 입력해 주세요.'; $('scan-results').replaceChildren(); $('scan-dialog').showModal(); });
+    $('scan-close').addEventListener('click',()=> $('scan-dialog').close());
+    $('scan-dialog').addEventListener('close',()=> { scanSession++; scanLookupId++; stopScanCamera(); scanRequest?.abort(); scanRequest=null; $('scan-code').value=''; $('scan-photo').value=''; $('scan-results').replaceChildren(); $('scan-status').textContent=''; });
+    $('scan-stop').addEventListener('click',()=> { stopScanCamera(); $('scan-status').textContent='카메라를 껐어요. 사진이나 코드 입력으로도 찾을 수 있어요.'; });
+    document.addEventListener('visibilitychange',()=> { if (document.hidden && (scanStream || !$('scan-stop').hidden)) { stopScanCamera(); $('scan-status').textContent='화면을 벗어나 카메라를 껐어요. 다시 찍으려면 카메라 버튼을 눌러 주세요.'; } });
+    $('scan-form').addEventListener('submit',event=> { event.preventDefault(); if (key) return lookupBarcode($('scan-code').value); });
+    $('scan-camera').addEventListener('click',async()=> {
+      if (!key || scanImageBusy) return; stopScanCamera(); const generation=cameraGeneration, session=scanSession; $('scan-camera').disabled=true; $('scan-stop').hidden=false;
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { $('scan-status').textContent='이 브라우저에서는 카메라를 열 수 없어요. 공개 HTTPS 주소에서 열거나 사진·코드 입력을 이용해 주세요.'; stopScanCamera(); return; }
+      $('scan-status').textContent='카메라를 준비하고 있어요. 권한 요청이 뜨면 허용해 주세요.';
+      try {
+        const library=await loadScanner(); if (generation!==cameraGeneration || session!==scanSession || !key) return;
+        const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        if (generation!==cameraGeneration || session!==scanSession || !key) { stream.getTracks().forEach(track=>track.stop()); return; }
+        scanStream=stream; $('scan-video').hidden=false; $('scan-status').textContent='코드를 밝고 선명하게 비춰 주세요. 30초 뒤 자동으로 꺼져요.';
+        const reader=new library.BrowserMultiFormatReader();
+        const controls=await reader.decodeFromStream(stream,$('scan-video'),result=> { if (result && generation===cameraGeneration && session===scanSession && key) { const text=result.getText(); $('scan-code').value=text.slice(0,500); lookupBarcode(text); } });
+        if (generation!==cameraGeneration || session!==scanSession) { controls.stop(); return; } scanControls=controls; scanTimer=setTimeout(()=> { stopScanCamera(); $('scan-status').textContent='코드를 읽지 못해 카메라를 껐어요. 사진을 선명하게 찍거나 숫자를 입력해 주세요.'; },30000);
+      } catch { if (generation===cameraGeneration && session===scanSession) { stopScanCamera(); $('scan-status').textContent='카메라를 열지 못했어요. 권한을 확인하거나 사진·코드 입력을 이용해 주세요.'; } }
+    });
+    $('scan-photo').addEventListener('change',async()=> {
+      const file=$('scan-photo').files[0]; if (!file || !key || scanImageBusy) return; stopScanCamera(); const session=scanSession;
+      if (!file.type.startsWith('image/') || file.size>8*1024*1024) { $('scan-status').textContent='8MB 이하의 사진을 선택해 주세요.'; return; }
+      scanImageBusy=true; $('scan-camera').disabled=true; $('scan-status').textContent='사진에서 코드를 읽고 있어요…'; const imageUrl=URL.createObjectURL(file);
+      try { const library=await loadScanner(); if (session!==scanSession || !key) return; const result=await new library.BrowserMultiFormatReader().decodeFromImageUrl(imageUrl); if (session===scanSession && key) { const text=result.getText(); $('scan-code').value=text.slice(0,500); await lookupBarcode(text); } }
+      catch { if (session===scanSession) $('scan-status').textContent='사진에서 코드를 읽지 못했어요. 코드 전체가 보이도록 다시 찍거나 숫자를 입력해 주세요.'; }
+      finally { URL.revokeObjectURL(imageUrl); scanImageBusy=false; $('scan-camera').disabled=false; $('scan-photo').value=''; }
+    });
     function fdaProducts(results) {
       const ids = new Set();
       return results.filter(item=>item && typeof item.set_id === 'string' && /^[a-f\d-]{36}$/i.test(item.set_id)).filter(item=> { if (ids.has(item.set_id)) return false; ids.add(item.set_id); return true; }).map(item=> {
@@ -458,8 +553,8 @@
         return {name:names[0] || '제품명 미제공',maker:strings(item.openfda?.manufacturer_name).join(', '),ingredients:substances.join(', '),details:strings(item.active_ingredient).join('\n'),basis:'미국 라벨 · 성분명은 원문 영어 표기',source:'https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid='+item.set_id,updated: /^\d{8}$/.test(item.effective_time || '') ? '라벨 날짜 '+item.effective_time.slice(0,4)+'-'+item.effective_time.slice(4,6)+'-'+item.effective_time.slice(6,8) : '라벨 날짜 미제공'};
       });
     }
-    function renderDrugResults(products) {
-      const root=$('drug-results'); root.replaceChildren();
+    function renderDrugResults(products,root=$('drug-results')) {
+      root.replaceChildren();
       for (const product of products) {
         const card=element('article','panel record'); card.append(element('h3','',product.name),element('p','record-note',product.maker),element('p','quiet',product.basis),element('p','record-note','유효성분: '+(product.ingredients || '성분명 미제공')));
         const previous=entries.filter(entry=>entry.medicine.trim().normalize('NFKC').toLowerCase()===product.name.trim().normalize('NFKC').toLowerCase());
@@ -469,7 +564,7 @@
         const source=element('a','text-btn','성분·주의사항 원문 확인'); source.href=product.source; source.target='_blank'; source.rel='noopener noreferrer'; card.append(element('p','quiet',product.updated),source);
         const select=element('button','btn secondary full','이 약을 내 기록에 넣기'); select.type='button'; select.disabled=!product.ingredients || product.ingredients.length>500 || product.name.length>100 || product.name==='제품명 미제공';
         if (select.disabled) card.append(element('p','quiet','자동 입력할 정보가 부족하거나 길어요. 원문을 확인해 직접 적어 주세요.'));
-        select.addEventListener('click',()=> { if (!key || busy) return; $('medicine').value=product.name; $('ingredients').value=product.ingredients; refreshImportInline(); $('drug-dialog').close(); $('record-status').textContent='약 이름과 유효성분을 넣었어요. 날짜·효과·반응을 확인하고 저장해 주세요.'; $('medicine').focus(); }); card.append(select); root.append(card);
+        select.addEventListener('click',()=> { if (!key || busy) return; $('medicine').value=product.name; $('ingredients').value=product.ingredients; refreshImportInline(); if ($('scan-dialog').open) $('scan-dialog').close(); if ($('drug-dialog').open) $('drug-dialog').close(); $('record-status').textContent='약 이름과 유효성분을 넣었어요. 날짜·효과·반응을 확인하고 저장해 주세요.'; $('medicine').focus(); }); card.append(select); root.append(card);
       }
     }
     $('drug-open').addEventListener('click',()=> { if (!key || busy) return; $('drug-country').value='kr'; $('drug-query').value=''; $('drug-status').textContent='국내는 제조사에서 확인한 2종만 제공해요. 전체 식약처 검색과 다른 국가 데이터는 아직 연결하지 않았어요.'; renderDrugResults(domesticDrugs); $('drug-dialog').showModal(); });
